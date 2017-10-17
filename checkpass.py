@@ -7,6 +7,7 @@ import platform
 import time
 import re
 import os
+import datetime
 
 '''
 写自启动项
@@ -24,9 +25,11 @@ def add_reg_autorun():
 		win32api.RegSetValueEx(key, name, 0, win32con.REG_SZ, path)
 		win32api.RegCloseKey(key)
 		print u'添加自启动项成功'
+		write_log_file('添加自启动项成功')
 		return True
 	except:
-		print u'失败添加自启动'
+		print u'添加自启动失败'
+		write_log_file('添加自启动失败')
 		return False
 '''
 判断是否是64位操作系统
@@ -133,7 +136,7 @@ def wait_for_restart():
 	#等待5分钟：
 	time_last = time.time()
 	while True:
-		if time.time() - time_last > 60 * 1:
+		if time.time() - time_last > 60 * 5:
 			break
 		time.sleep(5)
 	#注销重登录：
@@ -153,13 +156,16 @@ def http_send_check_result(server,valid,password):
 	length = len(password)
 	data = {'check_result':check_result,'length':length}
 	try:
-		req = requests.get(server,params=data,timeout=5)
+		req = requests.get(server,params=data,timeout=30)
 		if req.status_code == requests.codes.ok:
 			print u'上传检查结果成功！'
+			write_log_file('上传检查结果成功！')
 		else:
+			write_log_file('上传检查结果失败,状态码：'+req.status_code)
 			raise
 	except:
 		print u'上传检查结果失败！'
+		write_log_file('上传检查结果失败！')
 
 '''
 从config.ini中读取配置的上传服务地址，比如：http://1.2.3.4/msg_receiver.php
@@ -171,21 +177,38 @@ def get_server_from_config(filename):
 	except:
 		return ''
 
+
+def write_log_file(msg):
+	log_file = open('c:\checkpass\checkpass.log', 'a')
+	now_time = datetime.datetime.now().strftime('[%Y-%m-%d %H:%M:%S] ')
+	content = now_time + msg
+	log_file.write(content+"\n")
+	log_file.close()
+
 def main():
+	write_log_file('开始添加自启动')
 	add_reg_autorun()
+	write_log_file('开始检测密码')
 	password,valid,msg = check_pass()
 	#向server返回检查结果：
-	server = get_server_from_config('config.ini')
+	write_log_file('开始读取上传地址')
+	server = get_server_from_config('c:\checkpass\config.ini')
 	if server != '' :
+		write_log_file('上传地址为：'+server)
 		http_send_check_result(server,valid,password)
+	else:
+		write_log_file('获取上传地址失败')
 	if valid is not None:
 		if not valid:
 			#提示信息：
 			msg += u'你必须在5分钟内修改口令为包含字母、数字且长度大于8位的强口令，5分钟后将自动注销重新登录！'
 			win32api.MessageBox(0, msg, u'请注意',win32con.MB_OK | win32con.MB_ICONWARNING) 
+			write_log_file('密码强度不符合要求')
 			wait_for_restart()
+
 		else:
-			win32api.MessageBox(0, u'用户口令符合复杂度要求', u'口令',win32con.MB_OK) 
+			write_log_file('密码强度符合要求')
+			#win32api.MessageBox(0, u'用户口令符合复杂度要求', u'口令',win32con.MB_OK) 
 			#pass
 
 if __name__ == '__main__':

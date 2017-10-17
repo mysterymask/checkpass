@@ -9,7 +9,7 @@ osVersion = left(strOSversion,1)
 'wscript.echo osVersion
 SET Wshell=CreateObject("Wscript.Shell")
 if osVersion = "5" then
-    Wshell.run "checkpass.exe"
+    Wshell.run "c:\checkpass\checkpass.exe"
 else:
-    Wshell.run "run.js"
+    Wshell.run "c:\checkpass\run.js"
 end if
